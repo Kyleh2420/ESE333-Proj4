@@ -7,24 +7,44 @@
 struct sock *nl_sk = NULL; //Netlink socket, communicates betwen kernel and userspace
 int pid;
 
+int pidSub[2] = {0, 0};
+int pidPub = 0;
+
+//The following function reads the parameter called "skb", which is the socket buffer
 static void hello_nl_recv_msg(struct sk_buff *skb)
 {
 
-    struct nlmsghdr *nlh;
-	struct sk_buff *skb_out;
+    struct nlmsghdr *nlh; //Netlink Message Header
+	struct sk_buff *skb_out; //Pointer to the socket buffer
 	int msg_size;
-	char *msg = "Hello from kernel";
+	char *msg = "Hello from kernel";//This is the message we send back to the user
 	int res;
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
     	msg_size = strlen(msg);
 
-    	nlh = (struct nlmsghdr *)skb->data;
+    	nlh = (struct nlmsghdr *)skb->data; //This is the data we recieve from the publisher
     	printk(KERN_INFO "Netlink received msg payload:%s\n", (char *)nlmsg_data(nlh));
 	//msg =nlmsg_data(nlh);
 
 	pid = nlh->nlmsg_pid; /*pid of publishing process */
+		printk(KERN_INFO "Netlink received from PID:%d\n", pid);
+
+
+	//User Added Code
+	//When we have recieved a message, check if the first character is a p or s
+		//If it is an p
+			//Check to see if pidPub (Our publiser PID) is 0. If it is 0, then it is undeclared, and we don't have a publisher attached yet
+				//if the pidPublisher has already been established, we are full. Reject the message and notify the process.
+				//If the pidPub has not been established, assign the pidvalue. 
+					//Return message to pid
+		//If it is an s
+			//Find an empty spot in pidSub (i.e. check if pidSub[0] = 0 or pidSub[1] = 0)
+				//If none is found, return a message saying "Failed"
+				//If one is found, insert into spot.
+					//Return message saying "Successfully inserted"
+
 
 	skb_out = nlmsg_new(msg_size, 0);
 	if (!skb_out) {
