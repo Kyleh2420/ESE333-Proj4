@@ -5,10 +5,34 @@
 #define NETLINK_USER 31
 
 #include <linux/string.h>
+#include <linux/list.h>
+#include <linux/slab.h>
 
 
 struct sock *nl_sk = NULL; //Netlink socket, communicates betwen kernel and userspace
 int pid;
+
+//Implementing a PID linked list
+struct linkedList {
+	int pid;
+	struct list_head list;
+};
+
+/*
+struct linkedList publishers = {
+	0, LIST_HEAD_INIT(publishers.link)
+};
+
+struct linkedList subscribers = {
+	0, LIST_HEAD_INIT(subscribers.link)
+};
+*/
+
+//Start a linked list called subscrbers
+LIST_HEAD(subscribers);
+
+int found = 0;
+
 
 int pidSub[2] = {0, 0};
 int pidPub = 0;
@@ -44,23 +68,55 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 
 
 	//User Added Code
-	//When we have recieved a message, check if the first character is a p or s
-		//If it is an p
-			//Check to see if pidPub (Our publiser PID) is 0. If it is 0, then it is undeclared, and we don't have a publisher attached yet
-				//if the pidPublisher has already been established, we are full. Reject the message and notify the process.
-				//If the pidPub has not been established, assign the pidvalue. 
-					//Return message to pid
+	//When we have recieved a message, check if the first character is a s
 		//If it is an s
-			//Find an empty spot in pidSub (i.e. check if pidSub[0] = 0 or pidSub[1] = 0)
-				//If none is found, return a message saying "Failed"
-				//If one is found, insert into spot.
-					//Return message saying "Successfully inserted"
-		//If it is any other character, respond with error code
+			//Traverse the subscribers linkedlist looking for the same PID. 
+			//If we have found a process of the same PID, the message was probably a real message. Pass through to p.
+			//If we have not found the same PID, we have a new subscriber. 
+				//Append the PID of the new subscriber to a new node at the end of the subscribers linked list
+		//If it is any other character, it should be published to all subscribers (Not including the one who sent it)
+			//Starting from the head of the subscribers chain
+			//If it does not match the PID of our publisher PID, then send the message to that PID
+			//Repeat for all items in the linked list
 
-	//Declare a character array named recMes (Recieved Messaged)
-	//Then, copy the characters over
+			//Respond to the original PID with a success message
 
+
+	//Copy the message over to a character array called recievedMsg
+	char recievedMsg[strlen( (char *)nlmsg_data(nlh) )];
+	strcpy((char *)recievedMsg, (char *)nlmsg_data(nlh));
+	printk(KERN_INFO "value: %s\n", recievedMsg);
+	struct linkedList *lstPtr; 
+	struct linkedList *tmp;
+
+	//If the first letter is an s
+	if(recievedMsg[0] == 's') {
+		printk("s operation: %d", pid);
+		
+		found = 0;
+
+		list_for_each_entry(lstPtr, &subscribers, list) {
+			printk("Found - PID: %d", lstPtr->pid);
+			if (tmp -> pid == pid)  {
+				printk ("Pid Found: %d", lstPtr->pid);
+				found = 1;
+			} else {
+				printk ("Pid not found: %d", lstPtr->pid);
+			}
+		}
+
+		
+/*
+		//If we haven't found the PID, we shall add it now.
+		if (found == 0) {
+			tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
+			tmp->pid = nlh->nlmsg_pid;
+			list_add_tail(&tmp->link, &subscribers.link);
+		}
+		*/
+	}
 	
+	/*
 	char recMsg[strlen( (char *)nlmsg_data(nlh) )];
 	strcpy((char *)recMsg, (char *)nlmsg_data(nlh));
 
@@ -98,7 +154,7 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 							return;
 					}
 					nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
-					NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+					NETLINK_CB(skb_out).dst_group = 0; // not in mcast group 
 					strncpy(nlmsg_data(nlh), msg, msg_size);
 
 
@@ -156,6 +212,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 		msg = "Invalid Request";
 	}
 
+	*/
+
 
 	msg_size = strlen(msg);
 
@@ -192,6 +250,35 @@ static int __init hello_init(void)
         printk(KERN_ALERT "Error creating socket.\n");
         return -10;
     }
+
+	//Lets add a node with an pid of 0 just to start off this linked list
+	struct linkedList *tmp, *next;
+	struct linkedList *ptr = NULL;
+
+
+	tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
+	tmp->pid = 0;
+	list_add_tail(&tmp->list, &subscribers);
+
+	//Adding another node to test
+	tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
+	tmp->pid = 1;
+	list_add_tail(&tmp->list, &subscribers);
+
+	//Adding another node to test
+	tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
+	tmp->pid = 2;
+	list_add_tail(&tmp->list, &subscribers);
+
+	list_for_each_entry(ptr, &subscribers, list) {
+		printk("My List - PID: %d", ptr->pid);
+	}
+
+	list_for_each_entry_safe(tmp, next, &subscribers, list) {
+		list_del(&tmp->list);
+		kfree(tmp);
+	}
+
 
     return 0;
 }
