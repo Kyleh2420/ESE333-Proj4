@@ -15,8 +15,46 @@ struct iovec iov;
 int sock_fd;
 struct msghdr msg;
 
+char line[MAX_PAYLOAD]; //The input line
+
+void removeChar(char *str, char c) {
+    //If the string is null, do nothing.
+    //Otherwise, continue on
+    if (str != NULL) {
+        int i, j;
+        int len = strlen(str);
+        for (i = j = 0; i < len; i++) {
+            if (str[i] != c) {
+                str[j++] = str[i];
+            }
+        }
+        str[j] = '\0';
+    }
+}
+
 int main()
 {
+    fputs("Are you a [p]ublisher or a [s]ubscriber: \n", stdout);
+    fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
+
+    //Remove the newline character at the end of the line
+    removeChar(line, '\n');
+
+    if (line[0] == 'p'){
+
+    } else if (line[0] == 'p') {
+
+    } else if (line[0] == 'q') {
+        
+    }
+
+    fputs("what data would you like to send?\n", stdout);
+    fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
+    //fputs("Sending data...", stdout);
+
+    //Remove the newline character at the end of the line
+    removeChar(line, '\n');
+
     sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
     if (sock_fd < 0)
         return -1;
@@ -38,7 +76,7 @@ int main()
     nlh->nlmsg_pid = getpid();
     nlh->nlmsg_flags = 0;
 
-    strcpy(NLMSG_DATA(nlh), "TEST DATA 1");
+    strcpy(NLMSG_DATA(nlh), line);
 
     iov.iov_base = (void *)nlh;
     iov.iov_len = nlh->nlmsg_len;
