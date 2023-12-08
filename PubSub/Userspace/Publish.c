@@ -16,6 +16,7 @@ int sock_fd;
 struct msghdr msg;
 
 char line[MAX_PAYLOAD]; //The input line
+char tmpLine[MAX_PAYLOAD];
 
 void removeChar(char *str, char c) {
     //If the string is null, do nothing.
@@ -31,6 +32,7 @@ void removeChar(char *str, char c) {
         str[j] = '\0';
     }
 }
+
 
 int main()
 {
@@ -66,7 +68,7 @@ int main()
             nlh->nlmsg_pid = getpid();
             nlh->nlmsg_flags = 0;
 
-            strcpy(NLMSG_DATA(nlh), "s");
+            strcpy(NLMSG_DATA(nlh), "p");
 
             iov.iov_base = (void *)nlh;
             iov.iov_len = nlh->nlmsg_len;
@@ -91,6 +93,11 @@ int main()
 
                 //Remove the newline character at the end of the line
                 removeChar(line, '\n');
+
+                //Automaticlaly add the first character as a p to verify publisher status
+                strcpy(tmpLine, "p");
+                strcat(tmpLine, line);
+                strcpy(line, tmpLine);
 
                 sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
                 if (sock_fd < 0)
