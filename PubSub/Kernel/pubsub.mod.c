@@ -26,12 +26,17 @@ static const struct modversion_info ____versions[]
 __used __section(__versions) = {
 	{ 0xdd8f8694, "module_layout" },
 	{ 0x3bfcb827, "netlink_kernel_release" },
-	{ 0xdecd0b29, "__stack_chk_fail" },
 	{ 0xa1407a51, "__netlink_kernel_create" },
 	{ 0x30cb0399, "init_net" },
+	{ 0xdecd0b29, "__stack_chk_fail" },
+	{ 0xcbd4898c, "fortify_panic" },
 	{ 0xac5bc229, "netlink_unicast" },
+	{ 0x9166fada, "strncpy" },
 	{ 0xaf0ee0b5, "__nlmsg_put" },
 	{ 0x71a7b444, "__alloc_skb" },
+	{ 0xa916b694, "strnlen" },
+	{ 0x69acdf38, "memcpy" },
+	{ 0x754d539c, "strlen" },
 	{ 0xc5850110, "printk" },
 	{ 0xbdfb6dbb, "__fentry__" },
 };
@@ -39,4 +44,4 @@ __used __section(__versions) = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "7251EEAB12D5358DD3B988F");
+MODULE_INFO(srcversion, "1309A7214787411F1CA35B7");

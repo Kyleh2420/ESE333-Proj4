@@ -4,6 +4,9 @@
 #include <linux/skbuff.h> 
 #define NETLINK_USER 31
 
+#include <linux/string.h>
+
+
 struct sock *nl_sk = NULL; //Netlink socket, communicates betwen kernel and userspace
 int pid;
 
@@ -22,10 +25,12 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
-    	msg_size = strlen(msg);
+		//I removed this so we can adjust the string that will go back to the user
+    	//msg_size = strlen(msg);
 
     	nlh = (struct nlmsghdr *)skb->data; //This is the data we recieve from the publisher
     	printk(KERN_INFO "Netlink received msg payload:%s\n", (char *)nlmsg_data(nlh));
+		//printk(KERN_INFO "Payload size is: %d\n", strlen( (char *)nlmsg_data(nlh)));
 	//msg =nlmsg_data(nlh);
 
 	pid = nlh->nlmsg_pid; /*pid of publishing process */
@@ -44,7 +49,50 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 				//If none is found, return a message saying "Failed"
 				//If one is found, insert into spot.
 					//Return message saying "Successfully inserted"
+		//If it is any other character, respond with error code
 
+	//Declare a character array named recMes (Recieved Messaged)
+	//Then, copy the characters over
+
+	
+	char recMsg[strlen( (char *)nlmsg_data(nlh) )];
+	strcpy((char *)recMsg, (char *)nlmsg_data(nlh));
+
+	
+	printk(KERN_INFO "value: %s\n", recMsg);
+
+
+
+	//If the first letter is a p
+	if (recMsg[0] == 'p') {
+		printk(KERN_INFO "Recieved p from: %d\n", pid);
+		printk(KERN_INFO "Recieved value: %s\n", recMsg);
+
+
+		//Set the publisher ID to a the current process recieved
+		if (pidPub == 0) {
+			pidPub = pid;
+			printk(KERN_INFO "Publisher set as PID: %d\n", pid);
+			msg = "You have been set as a publisher";
+		} else {
+			printk(KERN_INFO "Publisher already established as: %d\n", pidPub);
+			printk(KERN_INFO "Requesting PID is: %d\n", pid);
+
+			msg = "Publisher has already been established";
+		}
+	} else if (recMsg[0] == 's') {
+		printk(KERN_INFO "Recieved s from: %d\n", pid);
+		printk(KERN_INFO "Recieved value: %s\n", recMsg);
+	} else {
+		printk(KERN_INFO "Did not recieve valid value from: %d\n", pid);
+
+		msg = "Invalid Request";
+	}
+
+	
+
+
+	msg_size = strlen(msg);
 
 	skb_out = nlmsg_new(msg_size, 0);
 	if (!skb_out) {
@@ -56,6 +104,9 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
 	strncpy(nlmsg_data(nlh), msg, msg_size);
 
+	//nl_sk is the struct sock * returned by netlink_kernel_create
+	//skb_out is a buffer that contains the message 
+	//pid is the pid of the process to which the message should be sent to
 	res = nlmsg_unicast(nl_sk, skb_out, pid);
 	if (res < 0)
 		printk(KERN_INFO "Error while sending bak to user\n");
