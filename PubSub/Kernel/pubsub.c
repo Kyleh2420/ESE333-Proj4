@@ -12,6 +12,12 @@ int pid;
 
 int pidSub[2] = {0, 0};
 int pidPub = 0;
+int i = 0;
+
+
+void removeChar1(char *str) {
+    memmove(str, str+1, strlen(str));
+}
 
 //The following function reads the parameter called "skb", which is the socket buffer
 static void hello_nl_recv_msg(struct sk_buff *skb)
@@ -74,22 +80,81 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 			pidPub = pid;
 			printk(KERN_INFO "Publisher set as PID: %d\n", pid);
 			msg = "You have been set as a publisher";
+		} else if (pidPub == pid) {
+			//automatically remove the first letter
+			removeChar1(recMsg);
+			printk(KERN_INFO "Will broadcast value: %s\n", recMsg);
+			msg = recMsg;
+
+			for(i = 0; i < 2; i++){
+				if (pidSub[i] != 0){
+
+					printk(KERN_INFO "Attempting to add to pid: %d\n", pidSub[i]);
+
+					msg_size = strlen(msg);
+					skb_out = nlmsg_new(msg_size, 0);
+					if (!skb_out) {
+						printk(KERN_ERR "Failed to allocate new skb\n");
+							return;
+					}
+					nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+					NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+					strncpy(nlmsg_data(nlh), msg, msg_size);
+
+
+					if (nlmsg_unicast(nl_sk, skb_out, pidSub[i]) < 0) {
+						printk(KERN_INFO "Error while sending bak to user\n");
+					} else {
+						printk(KERN_INFO "Msg sent");
+					}
+				}
+			}
+
+			printk(KERN_INFO "Broadcasted");
+
 		} else {
 			printk(KERN_INFO "Publisher already established as: %d\n", pidPub);
 			printk(KERN_INFO "Requesting PID is: %d\n", pid);
 
 			msg = "Publisher has already been established";
 		}
+		printk(KERN_INFO "Done changing information");
 	} else if (recMsg[0] == 's') {
 		printk(KERN_INFO "Recieved s from: %d\n", pid);
 		printk(KERN_INFO "Recieved value: %s\n", recMsg);
+
+		//Default as error
+		msg = "Subscriber list full or error";
+
+		//Set subscriber ID to the current process recieved (if possible)
+		
+		for (i = 0; i < 2; i++) {
+
+			if (pidSub[i] == 0) {
+				pidSub[i] = pid;
+				msg = "You have been subscribed";
+				break;
+			} else if (pidSub[i] == pid) {
+				msg = "No need to resubscribe. You have already been subscribed.";
+				break;
+			} else {
+				msg = "";
+				printk(KERN_INFO "%d Subscriber already established as: %d\n", i, pidSub[i]);
+				printk(KERN_INFO "Requesting PID is: %d\n", pid);
+			}
+		}
+		printk(KERN_INFO "Done sending information");
 	} else {
 		printk(KERN_INFO "Did not recieve valid value from: %d\n", pid);
 
+
+		printk(KERN_INFO "Publisher: %d\n", pidPub);
+		for (i = 0; i < 2; i++) {
+			printk(KERN_INFO "Subscriber %d: %d\n", i, pidSub[i]);
+		}
+
 		msg = "Invalid Request";
 	}
-
-	
 
 
 	msg_size = strlen(msg);
@@ -97,9 +162,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 	skb_out = nlmsg_new(msg_size, 0);
 	if (!skb_out) {
 		printk(KERN_ERR "Failed to allocate new skb\n");
-	      	return;
+			return;
 	}
-
 	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
 	strncpy(nlmsg_data(nlh), msg, msg_size);
@@ -107,9 +171,12 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 	//nl_sk is the struct sock * returned by netlink_kernel_create
 	//skb_out is a buffer that contains the message 
 	//pid is the pid of the process to which the message should be sent to
-	res = nlmsg_unicast(nl_sk, skb_out, pid);
-	if (res < 0)
+	if (nlmsg_unicast(nl_sk, skb_out, pid) < 0) {
 		printk(KERN_INFO "Error while sending bak to user\n");
+	} else {
+		printk(KERN_INFO "Msg sent");
+	}
+	
 }
 
 static int __init hello_init(void)
