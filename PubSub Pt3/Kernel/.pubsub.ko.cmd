@@ -1,0 +1,1 @@
+cmd_/home/ese333/ESE333/Proj4/PubSub/Kernel/pubsub.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -z noexecstack   --build-id  -T ./scripts/module-common.lds -o /home/ese333/ESE333/Proj4/PubSub/Kernel/pubsub.ko /home/ese333/ESE333/Proj4/PubSub/Kernel/pubsub.o /home/ese333/ESE333/Proj4/PubSub/Kernel/pubsub.mod.o;  true
