@@ -229,6 +229,13 @@ static void __exit hello_exit(void)
 
     printk(KERN_INFO "exiting hello module\n");
     netlink_kernel_release(nl_sk);
+
+	struct linkedList *tmp, *next;
+
+	list_for_each_entry_safe(tmp, next, &subscribers, list) {
+		list_del(&tmp->list);
+		kfree(tmp);
+	}
 }
 
 module_init(hello_init); module_exit(hello_exit);
