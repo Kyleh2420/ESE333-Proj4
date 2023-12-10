@@ -30,9 +30,9 @@ __used __section(__versions) = {
 	{ 0xa1407a51, "__netlink_kernel_create" },
 	{ 0x30cb0399, "init_net" },
 	{ 0xb0e602eb, "memmove" },
+	{ 0xdecd0b29, "__stack_chk_fail" },
 	{ 0xca7a3159, "kmem_cache_alloc_trace" },
 	{ 0x428db41d, "kmalloc_caches" },
-	{ 0xdecd0b29, "__stack_chk_fail" },
 	{ 0xac5bc229, "netlink_unicast" },
 	{ 0x9166fada, "strncpy" },
 	{ 0xaf0ee0b5, "__nlmsg_put" },
@@ -46,4 +46,4 @@ __used __section(__versions) = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "4805B0129CC928E1CA1B184");
+MODULE_INFO(srcversion, "54E0D9A13B1C5A96AD84E68");

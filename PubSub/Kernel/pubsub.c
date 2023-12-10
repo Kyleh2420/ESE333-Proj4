@@ -90,8 +90,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 	struct linkedList *tmp;
 
 	//If the first letter is an s
-	if(recievedMsg[0] == 's') {
-		printk("s operation: %d", pid);
+	if(strcmp(recievedMsg, "subscribe") == 0) {
+		printk("Subscribe operation: %d", pid);
 		
 		found = 0;
 
@@ -106,13 +106,15 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 				printk("Nonmatching PID: %d", lstPtr -> pid);
 			}
 		}
-	} else if (recievedMsg[0] == 'd') {
+	} 
+	//Used for debugging. When we recieve a 'd', simply print out the current linked list
+	/*else if (recievedMsg[0] == 'd') {
 		//Traverse the list to output
 		list_for_each_entry(lstPtr, &subscribers, list) {
 			printk("List currently - PID: %d", lstPtr->pid);
 		}
 		printk("-----------------------");
-	}
+	}*/
 
 	//If we have not found anything, simply add the PID to the tail of the Linked list.
 	//If we have found it, then broadcast the message

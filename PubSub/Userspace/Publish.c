@@ -38,7 +38,7 @@ void *consumer(void *vargp) {
     while (1) {
         /* Read message from kernel */
         recvmsg(sock_fd, &msg, 0);
-        printf("Message recieved: %s\n", NLMSG_DATA(nlh));
+        printf("Message recieved: %s\n", (char *)NLMSG_DATA(nlh));
     }
 }
 
@@ -62,7 +62,7 @@ void *producer(void *vargp) {
         msg.msg_iov = &iov;
         msg.msg_iovlen = 1;
 
-        printf("Sending message to kernel\n");
+        printf("Sending message to kernel: %s\n", (char *)NLMSG_DATA(nlh));
         sendmsg(sock_fd, &msg, 0);
         printf("Message sent: %s\n", line);
     }
@@ -94,9 +94,9 @@ int main(){
     nlh->nlmsg_pid = getpid();
     nlh->nlmsg_flags = 0;
 
-    //Next, we send an s to subscribe to the kernel, and wait for an ack
+    //Next, we send a œ to subscribe to the kernel, and wait for an ack
 
-    strcpy(NLMSG_DATA(nlh), "s");
+    strcpy(NLMSG_DATA(nlh), "subscribe");
 
     iov.iov_base = (void *)nlh;
     iov.iov_len = nlh->nlmsg_len;
@@ -110,11 +110,6 @@ int main(){
 
     pthread_create(&tid[0], NULL, &producer, NULL);
     pthread_create(&tid[1], NULL, &consumer, NULL);
-
-    int i = 0;
-    for (i = 0; i < 2; i++) {
-        printf("Created threads: %d\n", tid[i]);
-    }
 
     pthread_join(tid[0], NULL);
     pthread_join(tid[1], NULL);
