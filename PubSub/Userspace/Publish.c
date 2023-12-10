@@ -18,6 +18,9 @@ struct msghdr msg;
 char line[MAX_PAYLOAD]; //The input line
 char tmpLine[MAX_PAYLOAD];
 
+//pthreads
+pthread_t tid[2];
+
 void removeChar(char *str, char c) {
     //If the string is null, do nothing.
     //Otherwise, continue on
@@ -33,156 +36,109 @@ void removeChar(char *str, char c) {
     }
 }
 
+void *consumer(void *vargp) {
 
-int main()
-{
+    //The first thin we want to do is establish a connection before handing it off to its own individual tasks
+    sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
+    if (sock_fd < 0)
+        return -1;
+
+    memset(&src_addr, 0, sizeof(src_addr));
+    src_addr.nl_family = AF_NETLINK;
+    src_addr.nl_pid = getpid(); /* self pid */
+
+    bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
+
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.nl_family = AF_NETLINK;
+    dest_addr.nl_pid = 0; /* For Linux Kernel */
+    dest_addr.nl_groups = 0; /* unicast */
+
+    nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
+    memset(nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
+    nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
+    nlh->nlmsg_pid = getpid();
+    nlh->nlmsg_flags = 0;
+
+    //Next, we send an s to subscribe to the kernel, and wait for an ack
+
+    strcpy(NLMSG_DATA(nlh), "s");
+
+    iov.iov_base = (void *)nlh;
+    iov.iov_len = nlh->nlmsg_len;
+    msg.msg_name = (void *)&dest_addr;
+    msg.msg_namelen = sizeof(dest_addr);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    printf("Establishing connection with Kernel...\n");
+    sendmsg(sock_fd, &msg, 0);
+
     while (1) {
-    
-        fputs("Are you a [p]ublisher or a [s]ubscriber: \n", stdout);
+        /* Read message from kernel */
+        recvmsg(sock_fd, &msg, 0);
+        printf("Message recieved: %s\n", NLMSG_DATA(nlh));
+    }
+}
+
+void *producer(void *vargp) {
+    while (1) {
+        fputs("what data would you like to send?\n", stdout);
         fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
+        //fputs("Sending data...", stdout);
 
         //Remove the newline character at the end of the line
         removeChar(line, '\n');
 
-        if (line[0] == 'p'){
+        sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
+        if (sock_fd < 0)
+            return -1;
 
-            //Send out a p once to establish that we're a publisher.
-            sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
-            if (sock_fd < 0)
-                return -1;
+        memset(&src_addr, 0, sizeof(src_addr));
+        src_addr.nl_family = AF_NETLINK;
+        src_addr.nl_pid = getpid(); /* self pid */
 
-            memset(&src_addr, 0, sizeof(src_addr));
-            src_addr.nl_family = AF_NETLINK;
-            src_addr.nl_pid = getpid(); /* self pid */
+        bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
 
-            bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
+        memset(&dest_addr, 0, sizeof(dest_addr));
+        dest_addr.nl_family = AF_NETLINK;
+        dest_addr.nl_pid = 0; /* For Linux Kernel */
+        dest_addr.nl_groups = 0; /* unicast */
 
-            memset(&dest_addr, 0, sizeof(dest_addr));
-            dest_addr.nl_family = AF_NETLINK;
-            dest_addr.nl_pid = 0; /* For Linux Kernel */
-            dest_addr.nl_groups = 0; /* unicast */
+        nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
+        memset(nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
+        nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
+        nlh->nlmsg_pid = getpid();
+        nlh->nlmsg_flags = 0;
 
-            nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
-            memset(nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
-            nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
-            nlh->nlmsg_pid = getpid();
-            nlh->nlmsg_flags = 0;
+        strcpy(NLMSG_DATA(nlh), line);
 
-            strcpy(NLMSG_DATA(nlh), "p");
+        iov.iov_base = (void *)nlh;
+        iov.iov_len = nlh->nlmsg_len;
+        msg.msg_name = (void *)&dest_addr;
+        msg.msg_namelen = sizeof(dest_addr);
+        msg.msg_iov = &iov;
+        msg.msg_iovlen = 1;
 
-            iov.iov_base = (void *)nlh;
-            iov.iov_len = nlh->nlmsg_len;
-            msg.msg_name = (void *)&dest_addr;
-            msg.msg_namelen = sizeof(dest_addr);
-            msg.msg_iov = &iov;
-            msg.msg_iovlen = 1;
-
-            printf("Sending message to kernel\n");
-            sendmsg(sock_fd, &msg, 0);
-            printf("Waiting for message from kernel\n");
-
-            /* Read message from kernel */
-            recvmsg(sock_fd, &msg, 0);
-            printf("Received message payload: %s\n", NLMSG_DATA(nlh));
-            close(sock_fd);
-
-            while (1) {
-                fputs("what data would you like to send?\n", stdout);
-                fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
-                //fputs("Sending data...", stdout);
-
-                //Remove the newline character at the end of the line
-                removeChar(line, '\n');
-
-                //Automaticlaly add the first character as a p to verify publisher status
-                strcpy(tmpLine, "p");
-                strcat(tmpLine, line);
-                strcpy(line, tmpLine);
-
-                sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
-                if (sock_fd < 0)
-                    return -1;
-
-                memset(&src_addr, 0, sizeof(src_addr));
-                src_addr.nl_family = AF_NETLINK;
-                src_addr.nl_pid = getpid(); /* self pid */
-
-                bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
-
-                memset(&dest_addr, 0, sizeof(dest_addr));
-                dest_addr.nl_family = AF_NETLINK;
-                dest_addr.nl_pid = 0; /* For Linux Kernel */
-                dest_addr.nl_groups = 0; /* unicast */
-
-                nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
-                memset(nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
-                nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
-                nlh->nlmsg_pid = getpid();
-                nlh->nlmsg_flags = 0;
-
-                strcpy(NLMSG_DATA(nlh), line);
-
-                iov.iov_base = (void *)nlh;
-                iov.iov_len = nlh->nlmsg_len;
-                msg.msg_name = (void *)&dest_addr;
-                msg.msg_namelen = sizeof(dest_addr);
-                msg.msg_iov = &iov;
-                msg.msg_iovlen = 1;
-
-                printf("Sending message to kernel\n");
-                sendmsg(sock_fd, &msg, 0);
-                printf("Waiting for message from kernel\n");
-
-                /* Read message from kernel */
-                recvmsg(sock_fd, &msg, 0);
-                printf("Received message payload: %s\n", NLMSG_DATA(nlh));
-                close(sock_fd);
-            }
-
-        } else if (line[0] == 's') {
-            sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
-            if (sock_fd < 0)
-                return -1;
-
-            memset(&src_addr, 0, sizeof(src_addr));
-            src_addr.nl_family = AF_NETLINK;
-            src_addr.nl_pid = getpid(); /* self pid */
-
-            bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
-
-            memset(&dest_addr, 0, sizeof(dest_addr));
-            dest_addr.nl_family = AF_NETLINK;
-            dest_addr.nl_pid = 0; /* For Linux Kernel */
-            dest_addr.nl_groups = 0; /* unicast */
-
-            nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
-            memset(nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
-            nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
-            nlh->nlmsg_pid = getpid();
-            nlh->nlmsg_flags = 0;
-
-            strcpy(NLMSG_DATA(nlh), "s");
-
-            iov.iov_base = (void *)nlh;
-            iov.iov_len = nlh->nlmsg_len;
-            msg.msg_name = (void *)&dest_addr;
-            msg.msg_namelen = sizeof(dest_addr);
-            msg.msg_iov = &iov;
-            msg.msg_iovlen = 1;
-
-            printf("Sending message to kernel\n");
-            sendmsg(sock_fd, &msg, 0);
-            printf("Waiting for message from kernel\n");
-            
-            while (1) {
-                /* Read message from kernel */
-                recvmsg(sock_fd, &msg, 0);
-                printf("Received message payload: %s\n", NLMSG_DATA(nlh));
-            }
-
-        } else if (line[0] == 'q') {
-
-        }
-
+        printf("Sending message to kernel\n");
+        sendmsg(sock_fd, &msg, 0);
+        printf("Message sent: %s\n", line);
     }
+
+}
+
+
+int main()
+{
+    pthread_create(&tid[0], NULL, &producer, NULL);
+    pthread_create(&tid[1], NULL, &consumer, NULL);
+
+    int i = 0;
+    for (i = 0; i < 2; i++) {
+        printf("Created threads: %d\n", tid[i]);
+    }
+
+    pthread_join(tid[0], NULL);
+    pthread_join(tid[1], NULL);
+
 }

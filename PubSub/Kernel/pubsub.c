@@ -31,7 +31,7 @@ struct linkedList subscribers = {
 //Start a linked list called subscrbers
 LIST_HEAD(subscribers);
 
-int found = 0;
+
 
 
 int pidSub[2] = {0, 0};
@@ -44,14 +44,14 @@ void removeChar1(char *str) {
 }
 
 //The following function reads the parameter called "skb", which is the socket buffer
-static void hello_nl_recv_msg(struct sk_buff *skb)
-{
+static void hello_nl_recv_msg(struct sk_buff *skb) {
 
     struct nlmsghdr *nlh; //Netlink Message Header
 	struct sk_buff *skb_out; //Pointer to the socket buffer
 	int msg_size;
 	char *msg = "Hello from kernel";//This is the message we send back to the user
 	int res;
+	int found = 1;
 
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
@@ -95,145 +95,86 @@ static void hello_nl_recv_msg(struct sk_buff *skb)
 		
 		found = 0;
 
+		//Traverse the list trying to see if we found the PID. If we have found the PID,
+		//Then set the flag found = 1
 		list_for_each_entry(lstPtr, &subscribers, list) {
-			printk("Found - PID: %d", lstPtr->pid);
-			if (tmp -> pid == pid)  {
-				printk ("Pid Found: %d", lstPtr->pid);
+			printk("List currently - PID: %d", lstPtr->pid);
+			if(lstPtr -> pid == pid) {
+				printk("Found matching PID: %d", lstPtr -> pid);
 				found = 1;
 			} else {
-				printk ("Pid not found: %d", lstPtr->pid);
+				printk("Nonmatching PID: %d", lstPtr -> pid);
 			}
 		}
-
-		
-/*
-		//If we haven't found the PID, we shall add it now.
-		if (found == 0) {
-			tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
-			tmp->pid = nlh->nlmsg_pid;
-			list_add_tail(&tmp->link, &subscribers.link);
+	} else if (recievedMsg[0] == 'd') {
+		//Traverse the list to output
+		list_for_each_entry(lstPtr, &subscribers, list) {
+			printk("List currently - PID: %d", lstPtr->pid);
 		}
-		*/
+		printk("-----------------------");
 	}
-	
-	/*
-	char recMsg[strlen( (char *)nlmsg_data(nlh) )];
-	strcpy((char *)recMsg, (char *)nlmsg_data(nlh));
 
-	
-	printk(KERN_INFO "value: %s\n", recMsg);
+	//If we have not found anything, simply add the PID to the tail of the Linked list.
+	//If we have found it, then broadcast the message
+	if (found == 0){
+		tmp = kmalloc(sizeof(struct linkedList), GFP_KERNEL);
+		tmp->pid = pid;
+		list_add_tail(&tmp->list, &subscribers);
+		printk(KERN_INFO "Added pid: %d to the linked list", pid);
+	} else {
 
+		//Broadcast the message
 
+		//Default back to found = 0
+		found = 0;
 
-	//If the first letter is a p
-	if (recMsg[0] == 'p') {
-		printk(KERN_INFO "Recieved p from: %d\n", pid);
-		printk(KERN_INFO "Recieved value: %s\n", recMsg);
+		//Copy the message over to the msg buffer
+		msg = recievedMsg;
+		msg_size = strlen(msg);
 
+		//Iterate through each entry in the linked list
+		list_for_each_entry(lstPtr, &subscribers, list) {
 
-		//Set the publisher ID to a the current process recieved
-		if (pidPub == 0) {
-			pidPub = pid;
-			printk(KERN_INFO "Publisher set as PID: %d\n", pid);
-			msg = "You have been set as a publisher";
-		} else if (pidPub == pid) {
-			//automatically remove the first letter
-			removeChar1(recMsg);
-			printk(KERN_INFO "Will broadcast value: %s\n", recMsg);
-			msg = recMsg;
-
-			for(i = 0; i < 2; i++){
-				if (pidSub[i] != 0){
-
-					printk(KERN_INFO "Attempting to add to pid: %d\n", pidSub[i]);
-
-					msg_size = strlen(msg);
-					skb_out = nlmsg_new(msg_size, 0);
-					if (!skb_out) {
-						printk(KERN_ERR "Failed to allocate new skb\n");
-							return;
-					}
-					nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
-					NETLINK_CB(skb_out).dst_group = 0; // not in mcast group 
-					strncpy(nlmsg_data(nlh), msg, msg_size);
-
-
-					if (nlmsg_unicast(nl_sk, skb_out, pidSub[i]) < 0) {
-						printk(KERN_INFO "Error while sending bak to user\n");
-					} else {
-						printk(KERN_INFO "Msg sent");
-					}
-				}
-			}
-
-			printk(KERN_INFO "Broadcasted");
-
-		} else {
-			printk(KERN_INFO "Publisher already established as: %d\n", pidPub);
-			printk(KERN_INFO "Requesting PID is: %d\n", pid);
-
-			msg = "Publisher has already been established";
+			skb_out = nlmsg_new(msg_size, 0);
+		if (!skb_out) {
+			printk(KERN_ERR "Failed to allocate new skb\n");
+				return;
 		}
-		printk(KERN_INFO "Done changing information");
-	} else if (recMsg[0] == 's') {
-		printk(KERN_INFO "Recieved s from: %d\n", pid);
-		printk(KERN_INFO "Recieved value: %s\n", recMsg);
+		nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+		NETLINK_CB(skb_out).dst_group = 0; // not in mcast group 
+		strncpy(nlmsg_data(nlh), msg, msg_size);
 
-		//Default as error
-		msg = "Subscriber list full or error";
+			//Announce to dmesg that we're going to broadcast
+			printk("Broadcasting to PID: %d", lstPtr->pid);
 
-		//Set subscriber ID to the current process recieved (if possible)
-		
-		for (i = 0; i < 2; i++) {
-
-			if (pidSub[i] == 0) {
-				pidSub[i] = pid;
-				msg = "You have been subscribed";
-				break;
-			} else if (pidSub[i] == pid) {
-				msg = "No need to resubscribe. You have already been subscribed.";
-				break;
+			if (nlmsg_unicast(nl_sk, skb_out, lstPtr->pid) < 0) {
+				printk(KERN_INFO "Error while sending message\n");
 			} else {
-				msg = "";
-				printk(KERN_INFO "%d Subscriber already established as: %d\n", i, pidSub[i]);
-				printk(KERN_INFO "Requesting PID is: %d\n", pid);
+				printk(KERN_INFO "Msg sent");
 			}
 		}
-		printk(KERN_INFO "Done sending information");
-	} else {
-		printk(KERN_INFO "Did not recieve valid value from: %d\n", pid);
-
-
-		printk(KERN_INFO "Publisher: %d\n", pidPub);
-		for (i = 0; i < 2; i++) {
-			printk(KERN_INFO "Subscriber %d: %d\n", i, pidSub[i]);
-		}
-
-		msg = "Invalid Request";
 	}
 
-	*/
 
+	// msg_size = strlen(msg);
 
-	msg_size = strlen(msg);
+	// skb_out = nlmsg_new(msg_size, 0);
+	// if (!skb_out) {
+	// 	printk(KERN_ERR "Failed to allocate new skb\n");
+	// 		return;
+	// }
+	// nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+	// NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+	// strncpy(nlmsg_data(nlh), msg, msg_size);
 
-	skb_out = nlmsg_new(msg_size, 0);
-	if (!skb_out) {
-		printk(KERN_ERR "Failed to allocate new skb\n");
-			return;
-	}
-	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
-	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
-	strncpy(nlmsg_data(nlh), msg, msg_size);
-
-	//nl_sk is the struct sock * returned by netlink_kernel_create
-	//skb_out is a buffer that contains the message 
-	//pid is the pid of the process to which the message should be sent to
-	if (nlmsg_unicast(nl_sk, skb_out, pid) < 0) {
-		printk(KERN_INFO "Error while sending bak to user\n");
-	} else {
-		printk(KERN_INFO "Msg sent");
-	}
+	// //nl_sk is the struct sock * returned by netlink_kernel_create
+	// //skb_out is a buffer that contains the message 
+	// //pid is the pid of the process to which the message should be sent to
+	// if (nlmsg_unicast(nl_sk, skb_out, pid) < 0) {
+	// 	printk(KERN_INFO "Error while sending bak to user\n");
+	// } else {
+	// 	printk(KERN_INFO "Msg sent");
+	// }
 	
 }
 
