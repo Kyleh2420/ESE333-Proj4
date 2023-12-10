@@ -49,7 +49,7 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
     struct nlmsghdr *nlh; //Netlink Message Header
 	struct sk_buff *skb_out; //Pointer to the socket buffer
 	int msg_size;
-	char *msg = "Hello from kernel";//This is the message we send back to the user
+	char *msg = "\0";//This is the message we send back to the user
 	int res;
 	int found = 1;
 
@@ -133,6 +133,7 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 		//Copy the message over to the msg buffer
 		msg = recievedMsg;
 		msg_size = strlen(msg);
+		printk(KERN_INFO "The message size is: %d", msg_size);
 
 		//Iterate through each entry in the linked list
 		list_for_each_entry(lstPtr, &subscribers, list) {

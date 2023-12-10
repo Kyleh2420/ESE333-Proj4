@@ -43,9 +43,11 @@ void *consumer(void *vargp) {
 }
 
 void *producer(void *vargp) {
-    char line[MAX_PAYLOAD]; //The input line
-    char tmpLine[MAX_PAYLOAD];
     while (1) {
+        //The input line
+        char *line = malloc(sizeof(char) * MAX_PAYLOAD); 
+        
+
         fputs("what data would you like to send?\n", stdout);
         fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
         //fputs("Sending data...", stdout);
@@ -65,6 +67,7 @@ void *producer(void *vargp) {
         printf("Sending message to kernel: %s\n", (char *)NLMSG_DATA(nlh));
         sendmsg(sock_fd, &msg, 0);
         printf("Message sent: %s\n", line);
+        free(line);
     }
 
 }
