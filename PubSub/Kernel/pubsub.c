@@ -131,7 +131,8 @@ static void hello_nl_recv_msg(struct sk_buff *skb) {
 		found = 0;
 
 		//Copy the message over to the msg buffer
-		msg = recievedMsg;
+		msg = kmalloc(sizeof( (char *)nlmsg_data(nlh)), GFP_KERNEL);
+		strcpy(msg, (char *)nlmsg_data(nlh));
 		msg_size = strlen(msg);
 		printk(KERN_INFO "The message size is: %d", msg_size);
 

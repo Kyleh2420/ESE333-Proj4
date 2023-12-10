@@ -31,12 +31,13 @@ __used __section(__versions) = {
 	{ 0x30cb0399, "init_net" },
 	{ 0xb0e602eb, "memmove" },
 	{ 0xdecd0b29, "__stack_chk_fail" },
-	{ 0xca7a3159, "kmem_cache_alloc_trace" },
-	{ 0x428db41d, "kmalloc_caches" },
 	{ 0xac5bc229, "netlink_unicast" },
 	{ 0x9166fada, "strncpy" },
 	{ 0xaf0ee0b5, "__nlmsg_put" },
 	{ 0x71a7b444, "__alloc_skb" },
+	{ 0xe914e41e, "strcpy" },
+	{ 0xca7a3159, "kmem_cache_alloc_trace" },
+	{ 0x428db41d, "kmalloc_caches" },
 	{ 0x69acdf38, "memcpy" },
 	{ 0x754d539c, "strlen" },
 	{ 0xc5850110, "printk" },
@@ -46,4 +47,4 @@ __used __section(__versions) = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "94D64DD02E4CF04C0C6DC1C");
+MODULE_INFO(srcversion, "49F6F351DB025F7C23C3D77");

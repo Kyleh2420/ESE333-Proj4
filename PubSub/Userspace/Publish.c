@@ -39,6 +39,7 @@ void *consumer(void *vargp) {
         /* Read message from kernel */
         recvmsg(sock_fd, &msg, 0);
         printf("Message recieved: %s\n", (char *)NLMSG_DATA(nlh));
+        memset(NLMSG_DATA(nlh), '\0', sizeof(NLMSG_DATA(nlh)));
     }
 }
 
@@ -47,7 +48,8 @@ void *producer(void *vargp) {
         //The input line
         char *line = malloc(sizeof(char) * MAX_PAYLOAD); 
         
-
+        memset(line, '\0', sizeof(char) * MAX_PAYLOAD);
+        memset(NLMSG_DATA(nlh), '\0', sizeof(NLMSG_DATA(nlh)));
         fputs("what data would you like to send?\n", stdout);
         fgets(line, MAX_PAYLOAD, stdin); //Read in the command line
         //fputs("Sending data...", stdout);
@@ -55,8 +57,10 @@ void *producer(void *vargp) {
         //Remove the newline character at the end of the line
         removeChar(line, '\n');
 
+
         strcpy(NLMSG_DATA(nlh), line);
 
+        nlh->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
         iov.iov_base = (void *)nlh;
         iov.iov_len = nlh->nlmsg_len;
         msg.msg_name = (void *)&dest_addr;
@@ -116,5 +120,7 @@ int main(){
 
     pthread_join(tid[0], NULL);
     pthread_join(tid[1], NULL);
+
+    close(sock_fd);
 
 }
